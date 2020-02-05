@@ -36,8 +36,8 @@ class Student(models.Model):
         # app_label = '应用名'  # 如果settings里面没有添加应用就需要定义好这个模型类属于哪个应用
         # db_tablespace  # 定义数据库表空间的名字
 
-    def __str__(self):
-        return self.Sname
+    def natural_key(self):
+        return (self.Sid)
 
 
 class Room(models.Model):
@@ -61,7 +61,10 @@ class Room(models.Model):
         ordering = ['Rid']
 
     def __str__(self):
-        return self.Sname
+        return self.Rtitle
+
+    def natural_key(self):
+        return (self.Rid)
 
 
 class Appoint(models.Model):
@@ -83,7 +86,7 @@ class Appoint(models.Model):
     # Astart=models.SmallIntegerField(choice=TIME_CHOICES, verbose_name='开始时间')
     # Aend=models.SmallIntegerField(choice=TIME_CHOICES, verbose_name='结束时间')
     Astart = models.DateTimeField(verbose_name='开始时间')
-    Aend = models.DateTimeField(verbose_name='结束时间')
+    Afinish = models.DateTimeField(verbose_name='结束时间')
 
     # appointed:    预约中
     # processing:   进行中
@@ -107,5 +110,5 @@ class Appoint(models.Model):
         verbose_name_plural = verbose_name
         ordering = ['Aid']
 
-    def __str__(self):
-        return self.Sname
+    def natural_key(self):
+        return (self.Aid)
