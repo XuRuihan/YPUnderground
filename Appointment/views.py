@@ -1,18 +1,25 @@
 # from django.shortcuts import render
 from django.http import JsonResponse
 from Appointment.models import Student, Room, Appoint
-from django.core.serializers import serialize
+from datetime import datetime, time
 import json
 
 from django.views.decorators.csrf import csrf_exempt
 
 # 响应函数都在这里
 # 路由关系在urls.py中定义
+# 查询的时候推荐使用 filter 方法代替 get 方法，因为 get 方法遇到
+# 多个查询结果或没有查询结果时会抛出异常
+# 如果使用 try/except 则可以使用 get 方法
 
 
 def obj2json(obj):
-    return json.loads(serialize('json', obj.only()))
-    # return list(obj.values())
+    # 我TM真的服了这个serializers了
+    # from django.core.serializers import serialize
+    # return json.loads(serialize('json', obj.only()))
+    # from django.core.serializers.json import DjangoJSONEncoder
+    # return list(obj.values(), cls=DjangoJSONEncoder)
+    return list(obj.values())
 
 
 # Django数据库操作：https://www.cnblogs.com/happy-king/p/8338404.html
@@ -28,13 +35,13 @@ def obj2json(obj):
 # })
 @csrf_exempt
 def addStudent(request):
+    # GET 方法用于在数据库中添加测试数据，不是正式接口
     if (request.method == 'GET'):
         student = Student()
-        student.Sid = '2333'
-        student.Sname = 'Jerry'
-        student.Scredit = 3
+        student.Sid = '1700017793'
+        student.Sname = 'Xrh'
         student.save()
-        student = Student().objects.filter(Sid='2333')
+        student = Student.objects.filter(Sid='1700017793')
         return JsonResponse({'status': 0, 'data': obj2json(student)})
     elif (request.method == 'POST'):
         contents = json.loads(request.body)
@@ -98,20 +105,59 @@ def getStudent(request):
         return JsonResponse({'status': 0, 'data': obj2json(students)})
     elif request.method == 'POST':
         contents = json.loads(request.body)
-        student = Student.objects.filter(contents['Sid'])
-        return JsonResponse({'status': 0, 'data': obj2json(student)})
+        try:
+            student = Student.objects.get(Sid=contents['Sid'])
+        except Exception as e:
+            return JsonResponse({
+                'status': 1,
+                'statusInfo': {
+                    'message': '学生查询失败',
+                    'detail': str(type(e))
+                }
+            })
+        appoints = student.appoint_list.all()
+        data = []
+        for appoint in appoints:
+            data.append({
+                'Aid':
+                appoint.Aid,  # 预约编号
+                'Atime':
+                appoint.Atime,  # 申请提交时间
+                'Astart':
+                appoint.Astart,  # 开始使用时间
+                'Afinish':
+                appoint.Afinish,  # 结束使用时间
+                'Ausage':
+                appoint.Ausage,  # 房间用途
+                'Astatus':
+                appoint.Astatus,  # 预约状态
+                'Rid':
+                appoint.Room.Rid,  # 房间编号
+                'Rtitle':
+                appoint.Room.Rtitle,  # 房间名称
+                'students': [  # 预约人
+                    {
+                        'Sname': student.Sname,  # 预约人姓名
+                    } for student in appoint.students.all()
+                ]
+            })
+        return JsonResponse({'status': 0, 'data': data})
 
 
 @csrf_exempt
 def addRoom(request):
+    # get 方法用于在数据库中添加测试数据，不是正式接口
     if (request.method == 'GET'):
-        print('addRoom using GET method')
-        room = Room.objects.create(Rid='B102',
-                                   Rtitle='小讨论室',
-                                   Rmin='3',
-                                   Rmax='15',
-                                   Rstatus=0)
-        room.save()  # 必须有这一句才能存储信息
+        room = Room.objects.filter(Rid='B102')
+        room.delete()
+        room = Room(Rid='B102',
+                    Rtitle='小讨论室',
+                    Rmin='3',
+                    Rmax='15',
+                    Rstart=time(8, 0, 0),
+                    Rfinish=time(23, 0, 0),
+                    Rstatus=0)
+        room.save()
         room = Room.objects.filter(Rid='B102')
         return JsonResponse({'status': 0, 'data': obj2json(room)})
     elif (request.method == 'POST'):
@@ -169,51 +215,60 @@ def updateRoom(request):
 @csrf_exempt
 def getRoom(request):
     if request.method == 'GET':
-        rooms = Room.objects.all()
+        rooms = Room.objects.exclude(Rstatus=1)
         return JsonResponse({'status': 0, 'data': obj2json(rooms)})
     elif request.method == 'POST':
         contents = json.loads(request.body)
-        room = Room.objects.filter(Rid=contents['Rid'])
-        return JsonResponse({'status': 0, 'data': obj2json(room)})
-
-
-# 新增预约的接口参数推荐：
-data: {
-    'students': [
-        {
-            'Sid': '1700017793',
-            'Sname': 'Xrh'
-        },
-        {
-            'Sid': '1700017795',
-            'Sname': 'Ky'
-        },
-    ],
-    'appoint': {
-        'Rid': 'B102',
-        'Astart': '2020-5-1 15:30',
-        'Afinish': '2020-5-1 16:40',
-    }
-}
+        room = Room.objects.get(Rid=contents['Rid'])
+        appoints = room.appoint_list.all()
+        data = []
+        for appoint in appoints:
+            data.append({
+                'Aid':
+                appoint.Aid,  # 预约编号
+                'Atime':
+                appoint.Atime,  # 申请提交时间
+                'Astart':
+                appoint.Astart,  # 开始使用时间
+                'Afinish':
+                appoint.Afinish,  # 结束使用时间
+                'Ausage':
+                appoint.Ausage,  # 房间用途
+                'Astatus':
+                appoint.Astatus,  # 预约状态
+                'Rid':
+                appoint.Room.Rid,  # 房间编号
+                'Rtitle':
+                appoint.Room.Rtitle,  # 房间名称
+                'students': [  # 预约人
+                    {
+                        'Sname': student.Sname,  # 预约人姓名
+                    } for student in appoint.students.all()
+                ]
+            })
+        return JsonResponse({'status': 0, 'data': data})
 
 
 @csrf_exempt
 def addAppoint(request):
+    # get 方法用于在数据库中添加测试数据，不是正式接口
     if (request.method == 'GET'):
-        return JsonResponse({
-            'status': 400,
-            'statusInfo': {
-                'message': 'add-appoint 没有GET方法',
-                'detail': 'using POST method instead'
-            }
-        })
+        room = Room.objects.get(Rid='B102')
+        student = Student.objects.get(Sid='1700017793')
+        appoint = Appoint(Room=room,
+                          Astart=datetime(2020, 1, 1, 8, 0, 0),
+                          Afinish=datetime(2020, 1, 1, 9, 0, 0),
+                          Ausage='do something')
+        appoint.save()
+        appoint.students.add(student)
+        appoint.save()
+        return JsonResponse({'status': 0, 'data': {}})
     elif (request.method == 'POST'):
-        contents = json.loads(request.body)
+        pass
 
 
 def deleteAppoint(request):
-    print(request)
-    pass
+    return JsonResponse({'delete all appoint'})
 
 
 def updateAppoint(request):
@@ -224,7 +279,32 @@ def updateAppoint(request):
 def getAppoint(request):
     if (request.method == 'GET'):  # 获取所有预约信息
         appoints = Appoint.objects.all()
-        return JsonResponse({'status': 0, 'data': obj2json(appoints)})
+        data = []
+        for appoint in appoints:
+            data.append({
+                'Aid':
+                appoint.Aid,  # 预约编号
+                'Atime':
+                appoint.Atime,  # 申请提交时间
+                'Astart':
+                appoint.Astart,  # 开始使用时间
+                'Afinish':
+                appoint.Afinish,  # 结束使用时间
+                'Ausage':
+                appoint.Ausage,  # 房间用途
+                'Astatus':
+                appoint.Astatus,  # 预约状态
+                'Rid':
+                appoint.Room.Rid,  # 房间编号
+                'Rtitle':
+                appoint.Room.Rtitle,  # 房间名称
+                'students': [  # 预约人
+                    {
+                        'Sname': student.Sname,  # 预约人姓名
+                    } for student in appoint.students.all()
+                ]
+            })
+        return JsonResponse({'status': 0, 'data': data})
     elif (request.method == 'POST'):  # 获取某条预约信息
         contents = json.loads(request.body)
         appoint = Appoint.objects.filter(Aid=contents['Aid'])

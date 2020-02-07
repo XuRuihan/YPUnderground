@@ -10,8 +10,8 @@ from django.db import models
 # 这时数据库中的表就创建好了
 # Django会给没有自增字段的表默认添加自增字段（id），不用管就好
 class Student(models.Model):
-    Sid = models.CharField(max_length=16, primary_key=True, verbose_name='学号')
-    Sname = models.CharField(max_length=16, verbose_name='姓名')
+    Sid = models.CharField(max_length=10, primary_key=True, verbose_name='学号')
+    Sname = models.CharField(max_length=64, verbose_name='姓名')
     # 性别对我们数据库没什么用，也许之后和其他组合并数据库会用到
     # GENDER_CHOICES = ((0, 'male'), (1, 'female'))
     # Sgender = models.SmallIntegerField(choices=GENDER_CHOICES,
@@ -36,20 +36,23 @@ class Student(models.Model):
         # app_label = '应用名'  # 如果settings里面没有添加应用就需要定义好这个模型类属于哪个应用
         # db_tablespace  # 定义数据库表空间的名字
 
-    def natural_key(self):
-        return (self.Sid)
+    # 傻逼 django 这个natural_key一点他娘的也不好用！！你们会用你们牛逼！！
+    # def natural_key(self):
+    #     return (self.Sid, self.Sname)
 
 
 class Room(models.Model):
     # 房间编号我不确定是否需要。如果地下室有门牌的话（例如B101）保留房间编号比较好
     # 如果删除Rid记得把Rtitle设置成主键
     Rid = models.CharField(max_length=8, primary_key=True, verbose_name='房间编号')
-    Rtitle = models.CharField(max_length=16, verbose_name='房间名')
+    Rtitle = models.CharField(max_length=32, verbose_name='房间名称')
     Rmin = models.IntegerField(default=0, verbose_name='房间预约人数下限')
     Rmax = models.IntegerField(default=20, verbose_name='房间使用人数上限')
+    Rstart = models.TimeField(verbose_name='最早预约时间')
+    Rfinish = models.TimeField(verbose_name='最迟预约时间')
     # Rstatus 标记当前房间是否允许预约，可由管理员修改
     # Deleted 标记已经被删除的房间，不能从表中删除的原因在下面Appoint中
-    RSTATUS_CHOICES = ((0, 'Permitted'), (1, 'Rejected'), (2, 'Deleted'))
+    RSTATUS_CHOICES = ((0, 'Permitted'), (1, 'Forbidden'), (2, 'Deleted'))
     Rstatus = models.SmallIntegerField(choices=RSTATUS_CHOICES,
                                        default=0,
                                        verbose_name='房间状态')
@@ -60,11 +63,8 @@ class Room(models.Model):
         verbose_name_plural = verbose_name
         ordering = ['Rid']
 
-    def __str__(self):
-        return self.Rtitle
-
-    def natural_key(self):
-        return (self.Rid)
+    # def natural_key(self):
+    #     return (self.Rid)
 
 
 class Appoint(models.Model):
@@ -87,6 +87,7 @@ class Appoint(models.Model):
     # Aend=models.SmallIntegerField(choice=TIME_CHOICES, verbose_name='结束时间')
     Astart = models.DateTimeField(verbose_name='开始时间')
     Afinish = models.DateTimeField(verbose_name='结束时间')
+    Ausage = models.CharField(max_length=64, )
 
     # appointed:    预约中
     # processing:   进行中
@@ -94,7 +95,7 @@ class Appoint(models.Model):
     # confirmed:    已确认
     # cancelled:    已取消
     STATUS_CHOICES = ((0, 'appointed'), (1, 'processing'), (2, 'waiting'),
-                      (3, 'confirmed'), (4, 'cancelled'))
+                      (3, 'confirmed'), (4, 'cancelled'), (5, 'violated'))
     Astatus = models.SmallIntegerField(choices=STATUS_CHOICES,
                                        default=0,
                                        verbose_name='预约状态')
@@ -110,5 +111,5 @@ class Appoint(models.Model):
         verbose_name_plural = verbose_name
         ordering = ['Aid']
 
-    def natural_key(self):
-        return (self.Aid)
+    # def natural_key(self):
+    #     return (self.Aid)
