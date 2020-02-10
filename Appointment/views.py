@@ -1,7 +1,7 @@
 # from django.shortcuts import render
 from django.http import JsonResponse
 from Appointment.models import Student, Room, Appoint
-from datetime import datetime, time
+from datetime import datetime
 import json
 
 from django.views.decorators.csrf import csrf_exempt
