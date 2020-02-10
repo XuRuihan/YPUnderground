@@ -25,7 +25,7 @@ ret = {
 
 1. 获取所有预约信息（想想这个好像没什么用？）
 
-url 地址：http://127.0.0.1:8000/appointment/get-appoint
+url 地址：http://39.107.70.176:9000/appointment/get-appoint
 方法：GET
 参数：无
 
@@ -53,7 +53,7 @@ url 地址：http://127.0.0.1:8000/appointment/get-appoint
 
 2. 获取所有房间
 
-url 地址：http://127.0.0.1:8000/appointment/get-room
+url 地址：http://39.107.70.176:9000/appointment/get-room
 方法：GET
 参数：无
 
@@ -74,7 +74,7 @@ url 地址：http://127.0.0.1:8000/appointment/get-room
 
 3. 获取某个房间的预约信息
 
-url 地址：http://127.0.0.1:8000/appointment/get-room
+url 地址：http://39.107.70.176:9000/appointment/get-room
 方法：POST
 参数：Rid
 
@@ -99,7 +99,7 @@ url 地址：http://127.0.0.1:8000/appointment/get-room
 
 4. 申请预约
 
-url 地址：http://127.0.0.1:8000/appointment/add-appoint
+url 地址：http://39.107.70.176:9000/appointment/add-appoint
 方法：POST
 参数：Json对象，内容如下：{
     'Astart': '',  # 开始使用时间
@@ -122,7 +122,7 @@ url 地址：http://127.0.0.1:8000/appointment/add-appoint
 
 5. 查询个人所有预约信息
 
-url 地址：http://127.0.0.1:8000/appointment/get-student
+url 地址：http://39.107.70.176:9000/appointment/get-student
 方法：POST
 参数：Sid
 
@@ -148,9 +148,37 @@ url 地址：http://127.0.0.1:8000/appointment/get-student
 
 6. 改变预约状态（包括取消预约，管理员确认（学生在使用结束后自动确认））
 
-url 地址：http://127.0.0.1:8000/appointment/update-appoint
+url 地址：http://39.107.70.176:9000/appointment/update-appoint
 方法：POST
 参数：Aid, Astatus(取值范围：0预约中appointed，1进行中processing，2等待确认waiting，3已确认confirmed，4已取消cancelled)
 
 返回值：
 'data': {}
+
+
+【地下室后端操作】
+
+7. 创建学生
+url 地址：http://39.107.70.176:9000/appointment/add-student
+方法：POST
+参数：Sid Sname
+返回值：
+无
+
+
+8. 创建房间
+url 地址：http://39.107.70.176:9000/appointment/add-room
+方法：POST
+参数：Rid, Rtitle, Rmin, Rmax, Rstatus
+
+返回值：
+无
+
+
+【其他接口】
+1. Django 管理平台
+url 地址：http://39.107.70.176:9000/admin/
+方法：直接在浏览器中访问
+
+用户名：admin
+密码：admin

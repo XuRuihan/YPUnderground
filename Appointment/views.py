@@ -116,51 +116,16 @@ def getStudent(request):
                 }
             })
         appoints = student.appoint_list.all()
-        data = []
-        for appoint in appoints:
-            data.append({
-                'Aid':
-                appoint.Aid,  # 预约编号
-                'Atime':
-                appoint.Atime,  # 申请提交时间
-                'Astart':
-                appoint.Astart,  # 开始使用时间
-                'Afinish':
-                appoint.Afinish,  # 结束使用时间
-                'Ausage':
-                appoint.Ausage,  # 房间用途
-                'Astatus':
-                appoint.Astatus,  # 预约状态
-                'Rid':
-                appoint.Room.Rid,  # 房间编号
-                'Rtitle':
-                appoint.Room.Rtitle,  # 房间名称
-                'students': [  # 预约人
-                    {
-                        'Sname': student.Sname,  # 预约人姓名
-                    } for student in appoint.students.all()
-                ]
-            })
+        data = [appoint.toJson() for appoint in appoints]
         return JsonResponse({'status': 0, 'data': data})
 
 
 @csrf_exempt
 def addRoom(request):
     # get 方法用于在数据库中添加测试数据，不是正式接口
-    if (request.method == 'GET'):
-        room = Room.objects.filter(Rid='B102')
-        room.delete()
-        room = Room(Rid='B102',
-                    Rtitle='小讨论室',
-                    Rmin='3',
-                    Rmax='15',
-                    Rstart=time(8, 0, 0),
-                    Rfinish=time(23, 0, 0),
-                    Rstatus=0)
-        room.save()
-        room = Room.objects.filter(Rid='B102')
-        return JsonResponse({'status': 0, 'data': obj2json(room)})
-    elif (request.method == 'POST'):
+    if request.method == 'GET':
+        return JsonResponse({'status': 1, 'data': 'GET method not allowed'})
+    elif request.method == 'POST':
         contents = json.loads(request.body)
         try:
             Rid = contents['Rid'],
@@ -215,13 +180,14 @@ def updateRoom(request):
 @csrf_exempt
 def getRoom(request):
     if request.method == 'GET':
-        rooms = Room.objects.exclude(Rstatus=1)
+        rooms = Room.objects.all()
         return JsonResponse({'status': 0, 'data': obj2json(rooms)})
     elif request.method == 'POST':
         contents = json.loads(request.body)
-        #修改，异常处理
+        rooms = Room.objects.all()
+        # 修改，异常处理
         try:
-            room = Room.objects.get(Rid=contents['Rid'])
+            room = rooms.objects.filter(Rid=contents['Rid'])
         except Exception as e:
             return JsonResponse({
                 'status': 1,
@@ -231,31 +197,7 @@ def getRoom(request):
                 }
             })
         appoints = room.appoint_list.all()
-        data = []
-        for appoint in appoints:
-            data.append({
-                'Aid':
-                appoint.Aid,  # 预约编号
-                'Atime':
-                appoint.Atime,  # 申请提交时间
-                'Astart':
-                appoint.Astart,  # 开始使用时间
-                'Afinish':
-                appoint.Afinish,  # 结束使用时间
-                'Ausage':
-                appoint.Ausage,  # 房间用途
-                'Astatus':
-                appoint.Astatus,  # 预约状态
-                'Rid':
-                appoint.Room.Rid,  # 房间编号
-                'Rtitle':
-                appoint.Room.Rtitle,  # 房间名称
-                'students': [  # 预约人
-                    {
-                        'Sname': student.Sname,  # 预约人姓名
-                    } for student in appoint.students.all()
-                ]
-            })
+        data = [appoint.toJson() for appoint in appoints]
         return JsonResponse({'status': 0, 'data': data})
 
 
@@ -275,7 +217,7 @@ def addAppoint(request):
         return JsonResponse({'status': 0, 'data': {}})
     elif (request.method == 'POST'):
         contents = json.loads(request.body)
-        #首先检查房间是否存在
+        # 首先检查房间是否存在
         try:
             room = Room.objects.get(Rid=contents['Rid'])
         except Exception as e:
@@ -286,7 +228,7 @@ def addAppoint(request):
                     'detail': str(type(e))
                 }
             })
-        #再检查学号对不对
+        # 再检查学号对不对
         students = []
         ideqstu = True
         noeq = ''
@@ -306,8 +248,8 @@ def addAppoint(request):
                     'detail': str(type(e))
                 }
             })
-        #再检查学号和人对不对
-        if ideqstu == False:
+        # 再检查学号和人对不对
+        if ideqstu is False:
             return JsonResponse({
                 'status': 1,
                 'statusInfo': {
@@ -315,55 +257,57 @@ def addAppoint(request):
                     'detail': noeq
                 }
             })
-        #学号对了，人对了，房间是真实存在的，那就开始预约了
+        # 学号对了，人对了，房间是真实存在的，那就开始预约了
         appoints = room.appoint_list.all()
         for appoint in appoints:
-            if appint.Astatus == 4 or appiont.Astatus == 3:#等待确认的和结束的肯定是当下时刻已经弄完的，所以不用管
+            # 等待确认的和结束的肯定是当下时刻已经弄完的，所以不用管
+            if appoint.Astatus == 4 or appoint.Astatus == 3:
                 continue
-            start = appiont.Astart
-            finish = appint.Afinish
-            #第零种可能，愚蠢的预约，确保约定前小于后
+            start = appoint.Astart
+            finish = appoint.Afinish
+            # 第零种可能，愚蠢的预约，确保约定前小于后
             if start >= finish:
                 return JsonResponse({
-                'status': 1,
-                'statusInfo': {
-                    'message': '愚蠢',
-                    'detail': str(appiont.Aid)
-                }
-            })
-            #第一种可能，开始在开始之前，只要结束的比开始晚就不行
-            if start <= content['Astart'] and finish >= content['Astart']:
+                    'status': 1,
+                    'statusInfo': {
+                        'message': '愚蠢',
+                        'detail': str(appoint.Aid)
+                    }
+                })
+            # 第一种可能，开始在开始之前，只要结束的比开始晚就不行
+            if start <= contents['Astart'] and finish >= contents['Astart']:
                 return JsonResponse({
-                'status': 1,
-                'statusInfo': {
-                    'message': '冲突',
-                    'detail': str(appiont.Aid)
-                }
-            })
-            #第二种可能，开始在开始之后，只要在结束之前就都不行
-            elif start >= content['Astart'] and start < content['Afinish']:
+                    'status': 1,
+                    'statusInfo': {
+                        'message': '冲突',
+                        'detail': str(appoint.Aid)
+                    }
+                })
+            # 第二种可能，开始在开始之后，只要在结束之前就都不行
+            elif start >= contents['Astart'] and start < contents['Afinish']:
                 return JsonResponse({
-                'status': 1,
-                'statusInfo': {
-                    'message': '冲突',
-                    'detail': str(appiont.Aid)
-                }
-            })
-        #合法，可以返回了
+                    'status': 1,
+                    'statusInfo': {
+                        'message': '冲突',
+                        'detail': str(appoint.Aid)
+                    }
+                })
+        # 合法，可以返回了
         appoint = Appoint(Room=room,
                           Astart=contents['Astart'],
                           Afinish=contents['Afinish'],
-                          Ausage=contests['Ausage'])
+                          Ausage=contents['Ausage'])
         appoint.save()
         for student in students:
             appoint.students.add(student)
         appoint.save()
-        return JsonResponse({'status': 0, 'data': {
-            'message':'成功'
-            'detail': ''
-        }})
-
-
+        return JsonResponse({
+            'status': 0,
+            'data': {
+                'message': '成功',
+                'detail': ''
+            }
+        })
 
 
 def deleteAppoint(request):
@@ -372,39 +316,26 @@ def deleteAppoint(request):
 
 def updateAppoint(request):
     print(request)
-    pass
 
 
 def getAppoint(request):
     if (request.method == 'GET'):  # 获取所有预约信息
         appoints = Appoint.objects.all()
-        data = []
-        for appoint in appoints:
-            data.append({
-                'Aid':
-                appoint.Aid,  # 预约编号
-                'Atime':
-                appoint.Atime,  # 申请提交时间
-                'Astart':
-                appoint.Astart,  # 开始使用时间
-                'Afinish':
-                appoint.Afinish,  # 结束使用时间
-                'Ausage':
-                appoint.Ausage,  # 房间用途
-                'Astatus':
-                appoint.Astatus,  # 预约状态
-                'Rid':
-                appoint.Room.Rid,  # 房间编号
-                'Rtitle':
-                appoint.Room.Rtitle,  # 房间名称
-                'students': [  # 预约人
-                    {
-                        'Sname': student.Sname,  # 预约人姓名
-                    } for student in appoint.students.all()
-                ]
-            })
+        data = [appoint.toJson() for appoint in appoints]
         return JsonResponse({'status': 0, 'data': data})
     elif (request.method == 'POST'):  # 获取某条预约信息
         contents = json.loads(request.body)
-        appoint = Appoint.objects.filter(Aid=contents['Aid'])
-        return JsonResponse({'status': 0, 'data': obj2json(appoint)})
+        try:
+            Aid = contents['Aid']
+            assert contents['Aid'] != '', 'Aid is empty'
+        except Exception as e:
+            return JsonResponse({
+                'status': 1,
+                'statusInfo': {
+                    'message': 'Appointment id error',
+                    'detail': e,
+                }
+            })
+        appoints = Appoint.objects.filter(Aid=Aid)
+        data = [appoint.toJson() for appoint in appoints]
+        return JsonResponse({'status': 0, 'data': data})

@@ -78,7 +78,7 @@ DATABASES = {
     # create database underground charset='utf8';
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'underground',
+        'NAME': 'yuanpei_underground',
         'HOST': '127.0.0.1',
         'PORT': 3306,
         'USER': 'root',
@@ -126,3 +126,5 @@ USE_TZ = False
 # https://docs.djangoproject.com/en/3.0/howto/static-files/
 
 STATIC_URL = '/static/'
+
+STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static'), )
