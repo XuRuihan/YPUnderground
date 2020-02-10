@@ -321,7 +321,7 @@ def addAppoint(request):
             if appint.Astatus == 4 or appiont.Astatus == 3:#等待确认的和结束的肯定是当下时刻已经弄完的，所以不用管
                 continue
             start = appiont.Astart
-            finish = appint.Afinish
+            finish = appiont.Afinish
             #第零种可能，愚蠢的预约，确保约定前小于后
             if start >= finish:
                 return JsonResponse({
@@ -359,7 +359,7 @@ def addAppoint(request):
             appoint.students.add(student)
         appoint.save()
         return JsonResponse({'status': 0, 'data': {
-            'message':'成功'
+            'message':'成功',
             'detail': ''
         }})
 
