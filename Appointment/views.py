@@ -219,7 +219,17 @@ def getRoom(request):
         return JsonResponse({'status': 0, 'data': obj2json(rooms)})
     elif request.method == 'POST':
         contents = json.loads(request.body)
-        room = Room.objects.get(Rid=contents['Rid'])
+        #修改，异常处理
+        try:
+            room = Room.objects.get(Rid=contents['Rid'])
+        except Exception as e:
+            return JsonResponse({
+                'status': 1,
+                'statusInfo': {
+                    'message': '房间不存在',
+                    'detail': str(type(e))
+                }
+            })
         appoints = room.appoint_list.all()
         data = []
         for appoint in appoints:
@@ -264,7 +274,96 @@ def addAppoint(request):
         appoint.save()
         return JsonResponse({'status': 0, 'data': {}})
     elif (request.method == 'POST'):
-        pass
+        contents = json.loads(request.body)
+        #首先检查房间是否存在
+        try:
+            room = Room.objects.get(Rid=contents['Rid'])
+        except Exception as e:
+            return JsonResponse({
+                'status': 1,
+                'statusInfo': {
+                    'message': '房间不存在',
+                    'detail': str(type(e))
+                }
+            })
+        #再检查学号对不对
+        students = []
+        ideqstu = True
+        noeq = ''
+        try:
+            for stu in contents['students']:
+                student = Student.objects.get(Sid=stu['Sid'])
+                if student.Sname != stu['Sname']:
+                    ideqstu = False
+                    noeq.join(str(student.Sid))
+                    noeq.join(' ')
+                students.append(student)
+        except Exception as e:
+            return JsonResponse({
+                'status': 1,
+                'statusInfo': {
+                    'message': '学号不存在',
+                    'detail': str(type(e))
+                }
+            })
+        #再检查学号和人对不对
+        if ideqstu == False:
+            return JsonResponse({
+                'status': 1,
+                'statusInfo': {
+                    'message': '学生和学号不匹配',
+                    'detail': noeq
+                }
+            })
+        #学号对了，人对了，房间是真实存在的，那就开始预约了
+        appoints = room.appoint_list.all()
+        for appoint in appoints:
+            if appint.Astatus == 4 or appiont.Astatus == 3:#等待确认的和结束的肯定是当下时刻已经弄完的，所以不用管
+                continue
+            start = appiont.Astart
+            finish = appint.Afinish
+            #第零种可能，愚蠢的预约，确保约定前小于后
+            if start >= finish:
+                return JsonResponse({
+                'status': 1,
+                'statusInfo': {
+                    'message': '愚蠢',
+                    'detail': str(appiont.Aid)
+                }
+            })
+            #第一种可能，开始在开始之前，只要结束的比开始晚就不行
+            if start <= content['Astart'] and finish >= content['Astart']:
+                return JsonResponse({
+                'status': 1,
+                'statusInfo': {
+                    'message': '冲突',
+                    'detail': str(appiont.Aid)
+                }
+            })
+            #第二种可能，开始在开始之后，只要在结束之前就都不行
+            elif start >= content['Astart'] and start < content['Afinish']:
+                return JsonResponse({
+                'status': 1,
+                'statusInfo': {
+                    'message': '冲突',
+                    'detail': str(appiont.Aid)
+                }
+            })
+        #合法，可以返回了
+        appoint = Appoint(Room=room,
+                          Astart=contents['Astart'],
+                          Afinish=contents['Afinish'],
+                          Ausage=contests['Ausage'])
+        appoint.save()
+        for student in students:
+            appoint.students.add(student)
+        appoint.save()
+        return JsonResponse({'status': 0, 'data': {
+            'message':'成功'
+            'detail': ''
+        }})
+
+
 
 
 def deleteAppoint(request):
