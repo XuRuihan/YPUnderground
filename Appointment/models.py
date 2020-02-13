@@ -94,8 +94,11 @@ class Appoint(models.Model):
     # waiting:      等待确认
     # confirmed:    已确认
     # cancelled:    已取消
+    # violated:     违约
+    # judge         违约申诉成功
     STATUS_CHOICES = ((0, 'appointed'), (1, 'processing'), (2, 'waiting'),
-                      (3, 'confirmed'), (4, 'cancelled'), (5, 'violated'))
+                      (3, 'confirmed'), (4, 'cancelled'), (5, 'violated'),
+                      (6, 'judge'))
     Astatus = models.SmallIntegerField(choices=STATUS_CHOICES,
                                        default=0,
                                        verbose_name='预约状态')
