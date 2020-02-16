@@ -2,13 +2,11 @@ from django.db import models
 
 
 # 确保你的MySQL数据库里已经包含underground数据库
-# 如果没有的话，在命令行中执行mysql -u root -p然后输入密码
+# 如果没有的话，在命令行中执行mysql -uroot -p[密码]
 # 执行create database underground charset=utf8rm4;（一定不能少了分号！！！）
-# 这里是数据库的定义，由于Django封装好了数据库操作所以不需要写SQL语句
 # 定义完成后在命令行中执行python manage.py makemigrations，自动生成数据库迁移文件，
 # 然后执行python manage.py migrate，Django根据迁移文件自动生成SQL语句并执行
-# 这时数据库中的表就创建好了
-# Django会给没有自增字段的表默认添加自增字段（id），不用管就好
+# Django会给没有自增字段的表默认添加自增字段（id）
 class Student(models.Model):
     Sid = models.CharField('学号', max_length=10, primary_key=True)
     Sname = models.CharField('姓名', max_length=64)
@@ -57,15 +55,15 @@ class Room(models.Model):
     Rstatus = models.SmallIntegerField('房间状态',
                                        choices=RSTATUS_CHOICES,
                                        default=0)
-    is_delete = models.BooleanField('逻辑删除', default=False)
-    last_edit = models.DateTimeField('最后一次编辑时间', auto_now=True)
 
-    objects = RoomManager()
+    # is_delete = models.BooleanField('逻辑删除', default=False)
+    # last_edit = models.DateTimeField('最后一次编辑时间', auto_now=True)
 
-    def delete(self, using=None, keep_parents=False):
-        """重写数据库删除方法实现逻辑删除"""
-        self.is_delete = True
-        self.save()
+    # objects = RoomManager()
+    # def delete(self, using=None, keep_parents=False):
+    #     """重写数据库删除方法实现逻辑删除"""
+    #     self.is_delete = True
+    #     self.save()
 
     class Meta:
         db_table = 'tb_Room'
@@ -85,7 +83,7 @@ class Appoint(models.Model):
     # 调用时使用appoint_obj.Room和room_obj.appoint_list
     Room = models.ForeignKey(Room,
                              related_name='appoint_list',
-                             on_delete=models.DO_NOTHING,
+                             on_delete=models.SET_NULL,
                              verbose_name='房间号')
     # 申请时间为插入数据库的时间
     Atime = models.DateTimeField('申请时间', auto_now_add=True)
@@ -122,7 +120,7 @@ class Appoint(models.Model):
         ordering = ['Aid']
 
     def toJson(self):
-        return {
+        data = {
             'Aid':
             self.Aid,  # 预约编号
             'Atime':
@@ -145,3 +143,10 @@ class Appoint(models.Model):
                 } for student in self.students.all()
             ]
         }
+        try:
+            data['Rid'] = self.Room.Rid  # 房间编号
+            data['Rtitle'] = self.Room.Rtitle  # 房间名称
+        except Exception:
+            data['Rid'] = 'deleted'  # 房间编号
+            data['Rtitle'] = '房间已删除'  # 房间名称
+        return data

@@ -6,24 +6,12 @@ import json
 
 from django.views.decorators.csrf import csrf_exempt
 
-# 响应函数都在这里
-# 路由关系在urls.py中定义
-# 查询的时候推荐使用 filter 方法代替 get 方法，因为 get 方法遇到
-# 多个查询结果或没有查询结果时会抛出异常
-# 如果使用 try/except 则可以使用 get 方法
-
 
 def obj2json(obj):
-    # 我TM真的服了这个serializers了
-    # from django.core.serializers import serialize
-    # return json.loads(serialize('json', obj.only()))
-    # from django.core.serializers.json import DjangoJSONEncoder
-    # return list(obj.values(), cls=DjangoJSONEncoder)
     return list(obj.values())
 
 
 # Django数据库操作：https://www.cnblogs.com/happy-king/p/8338404.html
-# 推荐接口规范：https://www.cnblogs.com/guiyishanren/p/11132444.html
 # 返回数据的接口规范如下：
 # return JsonResponse({
 #     "data": {},
@@ -33,69 +21,59 @@ def obj2json(obj):
 #         "detail": "用于排查错误的详细错误信息"
 #     }
 # })
+# status 状态响应码规范：
+# 0：成功
+# 1：缺少参数或参数不符合规范（开始时间晚于结束时间等）
+# 2：数据库错误（条目不存在或者插入内容错误等）
+# 3：不允许使用的方法（GET or POST）
+# 4：未登录
 @csrf_exempt
 def addStudent(request):
-    # GET 方法用于在数据库中添加测试数据，不是正式接口
     if (request.method == 'GET'):
-        student = Student()
-        student.Sid = '1700017793'
-        student.Sname = 'Xrh'
-        student.save()
-        student = Student.objects.filter(Sid='1700017793')
-        return JsonResponse({'status': 0, 'data': obj2json(student)})
+        return JsonResponse({
+            'status': 3,
+            'statusInfo': {
+                'message': '不允许使用GET方法',
+                'detail': 'Get method not allowed',
+            },
+        })
     elif (request.method == 'POST'):
         contents = json.loads(request.body)
+        # 判断参数是否符合规范
         try:
             Sid = contents['Sid']
             Sname = contents['Sname']
+            assert Sid != '' and Sname != '', 'empty parameters'
         except Exception as e:
             return JsonResponse({
                 'status': 1,
                 'statusInfo': {
-                    'message': '缺少参数',
-                    'detail': str(type(e))
+                    'message': '缺少参数或参数不符合规范',
+                    'detail': e,
                 }
             })
-        if Sid == '' or Sname == '':
+        # 插入数据库
+        try:
+            student = Student.objects.filter(Sid=Sid)
+            assert not student.exists(), 'Sid already exists'
+            Student.objects.create(Sid=Sid, Sname=Sname)
+            return JsonResponse({'status': 0, 'data': 'success'})
+        except Exception as e:
             return JsonResponse({
-                'status': 1,
-                'statusInfo': {
-                    'message': '参数不能为空',
-                    'detail': ''
-                }
-            })
-        student = Student.objects.filter(Sid=Sid)
-        if student.exists():
-            return JsonResponse({
-                'status': 400,
+                'status': 2,
                 'statusInfo': {
                     'message': '学号已存在',
-                    'detailed': obj2json(student)
+                    'detailed': e,
                 },
-            })
-
-        try:
-            Student.objects.create(Sid=Sid, Sname=Sname)
-            student = Student.objects.filter(Sid=contents['Sid'])
-            return JsonResponse({'status': 0, 'data': obj2json(student)})
-        except Exception as e:
-            return JsonResponse({
-                'status': 1,
-                'statusInfo': {
-                    'message': '学生创建失败',
-                    'detail': str(type(e))
-                }
             })
 
 
 def deleteStudent(request):
     print(request)
-    pass
 
 
 def updateStudent(request):
     print(request)
-    pass
 
 
 @csrf_exempt
@@ -109,10 +87,10 @@ def getStudent(request):
             student = Student.objects.get(Sid=contents['Sid'])
         except Exception as e:
             return JsonResponse({
-                'status': 1,
+                'status': 2,
                 'statusInfo': {
                     'message': '学生查询失败',
-                    'detail': str(type(e))
+                    'detail': e,
                 }
             })
         appoints = student.appoint_list.all()
@@ -124,14 +102,22 @@ def getStudent(request):
 def addRoom(request):
     # get 方法用于在数据库中添加测试数据，不是正式接口
     if request.method == 'GET':
-        return JsonResponse({'status': 1, 'data': 'GET method not allowed'})
+        return JsonResponse({
+            'status': 3,
+            'statusInfo': {
+                'message': '不允许使用GET方法',
+                'detail': 'Get method not allowed',
+            },
+        })
     elif request.method == 'POST':
         contents = json.loads(request.body)
         try:
-            Rid = contents['Rid'],
-            Rtitle = contents['Rtitle'],
-            Rmin = contents['Rmin'],
-            Rmax = contents['Rmax'],
+            Rid = contents['Rid']
+            Rtitle = contents['Rtitle']
+            Rmin = contents['Rmin']
+            Rmax = contents['Rmax']
+            # Rstart = contents['Rstart']
+            # Rfinish = contents['Rfinish']
             Rstatus = contents['Rstatus']
         except Exception as e:
             return JsonResponse({
@@ -187,7 +173,7 @@ def getRoom(request):
         rooms = Room.objects.all()
         # 修改，异常处理
         try:
-            room = rooms.objects.filter(Rid=contents['Rid'])
+            room = rooms.objects.get(Rid=contents['Rid'])
         except Exception as e:
             return JsonResponse({
                 'status': 1,
@@ -205,16 +191,13 @@ def getRoom(request):
 def addAppoint(request):
     # get 方法用于在数据库中添加测试数据，不是正式接口
     if (request.method == 'GET'):
-        room = Room.objects.get(Rid='B102')
-        student = Student.objects.get(Sid='1700017793')
-        appoint = Appoint(Room=room,
-                          Astart=datetime(2020, 1, 1, 8, 0, 0),
-                          Afinish=datetime(2020, 1, 1, 9, 0, 0),
-                          Ausage='do something')
-        appoint.save()
-        appoint.students.add(student)
-        appoint.save()
-        return JsonResponse({'status': 0, 'data': {}})
+        return JsonResponse({
+            'status': 3,
+            'statusInfo': {
+                'message': '不允许使用GET方法',
+                'detail': 'Get method not allowed',
+            },
+        })
     elif (request.method == 'POST'):
         contents = json.loads(request.body)
         # 首先检查房间是否存在
@@ -225,7 +208,7 @@ def addAppoint(request):
                 'status': 1,
                 'statusInfo': {
                     'message': '房间不存在',
-                    'detail': str(type(e))
+                    'detail': e,
                 }
             })
         # 再检查学号对不对
@@ -234,6 +217,7 @@ def addAppoint(request):
         noeq = ''
         try:
             for stu in contents['students']:
+                print(stu)
                 student = Student.objects.get(Sid=stu['Sid'])
                 if student.Sname != stu['Sname']:
                     ideqstu = False
@@ -257,41 +241,39 @@ def addAppoint(request):
                     'detail': noeq
                 }
             })
+        # 检查预约时间是否正确
+        try:
+            Astart = datetime.strptime(contents['Astart'], '%Y-%m-%d %H:%M:%S')
+            Afinish = datetime.strptime(contents['Afinish'],
+                                        '%Y-%m-%d %H:%M:%S')
+            assert Astart >= Afinish, 'Appoint time error'
+        except Exception as e:
+            return JsonResponse({
+                'status': 1,
+                'statusInfo': {
+                    'message': '预约时间错误',
+                    'detail': e,
+                }
+            })
         # 学号对了，人对了，房间是真实存在的，那就开始预约了
-        appoints = room.appoint_list.all()
+        # 等待确认的和结束的肯定是当下时刻已经弄完的，所以不用管
+        appoints = room.appoint_list.filter(Astatus__lte=2)
         for appoint in appoints:
-            # 等待确认的和结束的肯定是当下时刻已经弄完的，所以不用管
-            if appoint.Astatus == 4 or appoint.Astatus == 3:
-                continue
             start = appoint.Astart
             finish = appoint.Afinish
-            # 第零种可能，愚蠢的预约，确保约定前小于后
-            if start >= finish:
-                return JsonResponse({
-                    'status': 1,
-                    'statusInfo': {
-                        'message': '愚蠢',
-                        'detail': str(appoint.Aid)
-                    }
-                })
+
             # 第一种可能，开始在开始之前，只要结束的比开始晚就不行
-            if start <= contents['Astart'] and finish >= contents['Astart']:
-                return JsonResponse({
-                    'status': 1,
-                    'statusInfo': {
-                        'message': '冲突',
-                        'detail': str(appoint.Aid)
-                    }
-                })
             # 第二种可能，开始在开始之后，只要在结束之前就都不行
-            elif start >= contents['Astart'] and start < contents['Afinish']:
+            if ((start <= Astart and Astart <= finish)
+                    or (Astart <= start and start < Afinish)):
                 return JsonResponse({
                     'status': 1,
                     'statusInfo': {
-                        'message': '冲突',
+                        'message': '预约时间与已有预约冲突',
                         'detail': str(appoint.Aid)
                     }
                 })
+
         # 合法，可以返回了
         appoint = Appoint(Room=room,
                           Astart=contents['Astart'],
@@ -303,10 +285,7 @@ def addAppoint(request):
         appoint.save()
         return JsonResponse({
             'status': 0,
-            'data': {
-                'message': '成功',
-                'detail': ''
-            }
+            'data': 'success',
         })
 
 
@@ -319,15 +298,15 @@ def updateAppoint(request):
 
 
 def getAppoint(request):
-    if (request.method == 'GET'):  # 获取所有预约信息
+    if request.method == 'GET':  # 获取所有预约信息
         appoints = Appoint.objects.all()
         data = [appoint.toJson() for appoint in appoints]
         return JsonResponse({'status': 0, 'data': data})
-    elif (request.method == 'POST'):  # 获取某条预约信息
+    elif request.method == 'POST':  # 获取某条预约信息
         contents = json.loads(request.body)
         try:
             Aid = contents['Aid']
-            assert contents['Aid'] != '', 'Aid is empty'
+            assert Aid != '', 'Aid is empty'
         except Exception as e:
             return JsonResponse({
                 'status': 1,
