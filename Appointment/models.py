@@ -83,6 +83,7 @@ class Appoint(models.Model):
     # 调用时使用appoint_obj.Room和room_obj.appoint_list
     Room = models.ForeignKey(Room,
                              related_name='appoint_list',
+                             null=True,
                              on_delete=models.SET_NULL,
                              verbose_name='房间号')
     # 申请时间为插入数据库的时间
@@ -102,8 +103,11 @@ class Appoint(models.Model):
     # waiting:      等待确认
     # confirmed:    已确认
     # cancelled:    已取消
+    # violated:     违约
+    # judge         违约申诉成功
     STATUS_CHOICES = ((0, 'appointed'), (1, 'processing'), (2, 'waiting'),
-                      (3, 'confirmed'), (4, 'cancelled'), (5, 'violated'))
+                      (3, 'confirmed'), (4, 'cancelled'), (5, 'violated'),
+                      (6, 'judge'))
     Astatus = models.SmallIntegerField('预约状态',
                                        choices=STATUS_CHOICES,
                                        default=0)

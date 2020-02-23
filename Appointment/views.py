@@ -159,8 +159,8 @@ def deleteRoom(request):
 
 
 def updateRoom(request):
-    print(request)
-    pass
+
+    assert request.method == 'POST'  # 只能使用POST方法来调用此函数
 
 
 @csrf_exempt
@@ -294,7 +294,45 @@ def deleteAppoint(request):
 
 
 def updateAppoint(request):
-    print(request)
+
+    assert request.method == 'POST'  # 只能使用POST方法来调用此函数
+
+    contents = json.loads(request.body)
+
+    if contents['Astatus'] < 0 or contents['Astatus'] > 6:  # 变更的状态参数错误
+        return JsonResponse({
+            'status': 1,
+            'statusInfo': {
+                'message': '状态参数错误',
+                'detail': str(type(Exception))
+            }
+        })
+
+    try:
+        appoint = Appoint.objects.get(Aid=contents['Aid'])  # 尝试获取预约信息
+    except Exception as e:
+        return JsonResponse({
+            'status': 1,
+            'statusInfo': {
+                'message': '预约不存在',
+                'detail': str(type(e))
+            }
+        })
+
+    appoint.Astatus = contents['Astatus']  # 修改预约信息
+    appoint.save()
+
+    if contents['Astatus'] == 5:  # 如果是变更为违约状态
+        for student in appoint.students:
+            student.Scredit -= 1
+            student.save()
+
+    elif contents['Astatus'] == 6:  # 如果是错误记录违约后申诉成功
+        for student in appoint.students:
+            student.Scredit += 1
+            student.save()
+
+    return JsonResponse({'status': 0, 'data': {}})
 
 
 def getAppoint(request):
