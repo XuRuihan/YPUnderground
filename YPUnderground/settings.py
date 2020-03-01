@@ -32,9 +32,14 @@ ALLOWED_HOSTS = ['*']
 # 新创建的app需要在这里注册
 # Appointment已在这里注册
 INSTALLED_APPS = [
-    'django.contrib.admin', 'django.contrib.auth',
-    'django.contrib.contenttypes', 'django.contrib.sessions',
-    'django.contrib.messages', 'django.contrib.staticfiles', 'Appointment'
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'django_apscheduler',
+    'Appointment',
 ]
 
 MIDDLEWARE = [
@@ -82,10 +87,10 @@ DATABASES = {
         'HOST': '127.0.0.1',
         'PORT': 3306,
         'USER': 'root',
-        'PASSWORD': 'mysql',
-        'OPTIONS': {
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
-        }
+        'PASSWORD': '',
+        # 'OPTIONS': {
+        #     "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+        # }
     }
 }
 

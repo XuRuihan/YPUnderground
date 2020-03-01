@@ -18,29 +18,19 @@ from Appointment import views
 app_name = 'Appointment'
 
 urlpatterns = [
-    # home 用来测试
-    # 运行程序python manage.py runserver
-    # url尽量符合规范，例如全部使用小写字母
     # 学生操作
-    path('add-student', views.addStudent, name='addStudent'),
-    path('delete-student', views.deleteStudent, name='deleteStudent'),
-    path('update-student', views.updateStudent, name='updateStudent'),
     path('get-student', views.getStudent, name='getStudent'),
     # 房间操作
-    path('add-room', views.addRoom, name='addRoom'),
-    path('delete-room', views.deleteRoom, name='deleteRoom'),
-    path('update-room', views.updateRoom, name='updateRoom'),
     path('get-room', views.getRoom, name='getRoom'),
     # 预约操作
     path('add-appoint', views.addAppoint, name='addAppoint'),
-    path('delete-appoint', views.deleteAppoint, name='deleteAppoint'),
-    path('update-appoint', views.updateAppoint, name='updateAppoint'),
+    path('cancel-appoint', views.cancelAppoint, name='cancelAppoint'),
     path('get-appoint', views.getAppoint, name='getAppoint'),
-    # 学生端交互操作
-    # getstudent - 查询学生所有预约记录（包括历史和未来）
-    # getappoint - 查询所有预约信息
-    # addappoint - 添加预约信息
-    # updateappoint - 改变预约信息（预约状态）
-    # 管理员端操作
-    # （大概是以上所有操作）
+
+    # 部署后需要删除的操作
+    path('add-student', views.addStudent, name='addStudent'),
+    path('add-room', views.addRoom, name='addRoom'),
+
+    # csrf验证操作（待完善）
+    path('get-csrf', views.getToken, name='getToken'),
 ]

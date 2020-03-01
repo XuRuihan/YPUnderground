@@ -1,26 +1,18 @@
-from django.contrib import admin
 from Appointment.models import Student, Room, Appoint
+from django.contrib import admin
+from django.utils.html import format_html, format_html_join
 
 # Register your models here.
+admin.site.site_title = '元培地下室管理后台'
+admin.site.site_header = '元培地下室 - 管理后台'
 
 
-class StudentInline(admin.TabularInline):
-    model = Student
-
-
-class RoomInline(admin.TabularInline):
-    model = Room
-
-
-class AppointInline(admin.TabularInline):
-    model = Appoint
-
-
+@admin.register(Student)
 class StudentAdmin(admin.ModelAdmin):
     search_fields = ('Sid', 'Sname')
-    list_display = ('Sid', 'Sname', 'Scredit')  # list
-    list_display_links = ('Sid', )
-    list_editable = ('Sname', 'Scredit')
+    list_display = ('Sid', 'Sname', 'Scredit')
+    list_display_links = ('Sid', 'Sname')
+    list_editable = ('Scredit', )
     list_filter = ('Scredit', )
     fieldsets = (['基本信息', {
         'fields': (
@@ -36,6 +28,7 @@ class StudentAdmin(admin.ModelAdmin):
     ])
 
 
+@admin.register(Room)
 class RoomAdmin(admin.ModelAdmin):
     list_display = (
         'Rid',
@@ -50,35 +43,106 @@ class RoomAdmin(admin.ModelAdmin):
     list_editable = ('Rtitle', 'Rmin', 'Rmax', 'Rstart', 'Rfinish', 'Rstatus')
     search_fields = ('Rid', 'Rtitle')
     list_filter = ('Rstatus', )  # 'is_delete'
-    fieldsets = ([
-        '基本信息', {
-            'fields': (
-                'Rid',
-                'Rtitle',
-                'Rmin',
-                'Rmax',
-                'Rstart',
-                'Rfinish',
-                'Rstatus',
-            ),
-        }
-    ], [
-        '删除房间信息', {
-            'classes': ('wide', ),
-            'description': '逻辑删除不会清空物理内存。只是在这里进行标记',
-            'fields': ('is_delete', ),
-        }
-    ])
+    fieldsets = (
+        [
+            '基本信息', {
+                'fields': (
+                    'Rid',
+                    'Rtitle',
+                    'Rmin',
+                    'Rmax',
+                    'Rstart',
+                    'Rfinish',
+                    'Rstatus',
+                ),
+            }
+        ],
+        # [
+        #     '删除房间信息', {
+        #         'classes': ('wide', ),
+        #         'description': '逻辑删除不会清空物理内存。只是在这里进行标记',
+        #         'fields': ('is_delete', ),
+        #     }
+        # ],
+    )
 
 
+@admin.register(Appoint)
 class AppointAdmin(admin.ModelAdmin):
-    search_fields = ('Aid', )
-    list_display = ('Aid', 'Room', 'Astart', 'Afinish', 'Atime', 'Ausage')
-    list_display_links = ('Aid', )
-    list_editable = ('Astart', 'Afinish', 'Ausage')
+    search_fields = (
+        'Aid',
+        'Room',
+    )
+    list_display = (
+        'Aid',
+        'Room',
+        'Astart',
+        'Afinish',
+        'Atime',  # 'Ausage',
+        'Students',
+        'Astatus_display',
+    )
+    list_display_links = ('Aid', 'Room')
+    list_editable = (
+        'Astart',
+        'Afinish',
+    )  # 'Ausage'
     list_filter = ('Astart', 'Atime')
+    date_hierarchy = 'Astart'
 
+    def Students(self, obj):
+        return format_html_join('\n', '<li>{}</li>',
+                                ((stu.Sname, ) for stu in obj.students.all()))
 
-admin.site.register(Student, StudentAdmin)
-admin.site.register(Room, RoomAdmin)
-admin.site.register(Appoint, AppointAdmin)
+    Students.short_description = '预约者'
+
+    def Astatus_display(self, obj):
+        if obj.Astatus == Appoint.StatusChoices.CANCELED:
+            color_code = 'grey'
+        elif obj.Astatus == Appoint.StatusChoices.APPOINTED:
+            color_code = 'black'
+        elif obj.Astatus == Appoint.StatusChoices.PROCESSING:
+            color_code = 'purple'
+        elif obj.Astatus == Appoint.StatusChoices.WAITING:
+            color_code = 'blue'
+        elif obj.Astatus == Appoint.StatusChoices.CONFIRMED:
+            color_code = 'green'
+        elif obj.Astatus == Appoint.StatusChoices.VIOLATED:
+            color_code = 'red'
+        elif obj.Astatus == Appoint.StatusChoices.JUDGED:
+            color_code = 'yellowgreen'
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            color_code,
+            obj.get_Astatus_display(),
+        )
+
+    Astatus_display.short_description = '预约状态'
+
+    actions = ['confirm', 'violate']
+
+    def confirm(self, request, queryset):  # 确认通过
+        for appoint in queryset:
+            if appoint.Astatus == Appoint.StatusChoices.WAITING:
+                appoint.Astatus = Appoint.StatusChoices.CONFIRMED
+            elif appoint.Astatus == Appoint.StatusChoices.VIOLATED:
+                appoint.Astatus = Appoint.StatusChoices.JUDGED
+                for stu in appoint.students.all():
+                    if stu.Scredit < 3:
+                        stu.Scredit += 1
+                        stu.save()
+            appoint.save()
+
+    confirm.short_description = '所选条目 通过'
+
+    def violate(self, request, queryset):  # 确认违约
+        for appoint in queryset:
+            if appoint.Astatus == Appoint.StatusChoices.WAITING:
+                appoint.Astatus = Appoint.StatusChoices.VIOLATED
+                appoint.save()
+                for stu in appoint.students.all():
+                    stu.Scredit -= 1
+                    stu.save()
+            appoint.save()
+
+    violate.short_description = '所选条目 违约'
