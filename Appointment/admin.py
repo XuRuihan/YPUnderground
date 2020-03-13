@@ -37,10 +37,10 @@ class RoomAdmin(admin.ModelAdmin):
         'Rmax',
         'Rstart',
         'Rfinish',
-        'Rstatus',
+        'Rstatus_display',
     )  # 'is_delete'
     list_display_links = ('Rid', )
-    list_editable = ('Rtitle', 'Rmin', 'Rmax', 'Rstart', 'Rfinish', 'Rstatus')
+    list_editable = ('Rtitle', 'Rmin', 'Rmax', 'Rstart', 'Rfinish')
     search_fields = ('Rid', 'Rtitle')
     list_filter = ('Rstatus', )  # 'is_delete'
     fieldsets = (
@@ -65,6 +65,19 @@ class RoomAdmin(admin.ModelAdmin):
         #     }
         # ],
     )
+
+    def Rstatus_display(self, obj):
+        if obj.Rstatus == Room.Status.PERMITTED:
+            color_code = 'green'
+        elif obj.Rstatus == Room.Status.SUSPENDED:
+            color_code = 'red'
+        return format_html(
+            '<span style="color: {};">{}</span>',
+            color_code,
+            obj.get_Rstatus_display(),
+        )
+
+    Rstatus_display.short_description = '预约状态'
 
 
 @admin.register(Appoint)
@@ -97,19 +110,19 @@ class AppointAdmin(admin.ModelAdmin):
     Students.short_description = '预约者'
 
     def Astatus_display(self, obj):
-        if obj.Astatus == Appoint.StatusChoices.CANCELED:
+        if obj.Astatus == Appoint.Status.CANCELED:
             color_code = 'grey'
-        elif obj.Astatus == Appoint.StatusChoices.APPOINTED:
+        elif obj.Astatus == Appoint.Status.APPOINTED:
             color_code = 'black'
-        elif obj.Astatus == Appoint.StatusChoices.PROCESSING:
+        elif obj.Astatus == Appoint.Status.PROCESSING:
             color_code = 'purple'
-        elif obj.Astatus == Appoint.StatusChoices.WAITING:
+        elif obj.Astatus == Appoint.Status.WAITING:
             color_code = 'blue'
-        elif obj.Astatus == Appoint.StatusChoices.CONFIRMED:
+        elif obj.Astatus == Appoint.Status.CONFIRMED:
             color_code = 'green'
-        elif obj.Astatus == Appoint.StatusChoices.VIOLATED:
+        elif obj.Astatus == Appoint.Status.VIOLATED:
             color_code = 'red'
-        elif obj.Astatus == Appoint.StatusChoices.JUDGED:
+        elif obj.Astatus == Appoint.Status.JUDGED:
             color_code = 'yellowgreen'
         return format_html(
             '<span style="color: {};">{}</span>',
@@ -123,10 +136,10 @@ class AppointAdmin(admin.ModelAdmin):
 
     def confirm(self, request, queryset):  # 确认通过
         for appoint in queryset:
-            if appoint.Astatus == Appoint.StatusChoices.WAITING:
-                appoint.Astatus = Appoint.StatusChoices.CONFIRMED
-            elif appoint.Astatus == Appoint.StatusChoices.VIOLATED:
-                appoint.Astatus = Appoint.StatusChoices.JUDGED
+            if appoint.Astatus == Appoint.Status.WAITING:
+                appoint.Astatus = Appoint.Status.CONFIRMED
+            elif appoint.Astatus == Appoint.Status.VIOLATED:
+                appoint.Astatus = Appoint.Status.JUDGED
                 for stu in appoint.students.all():
                     if stu.Scredit < 3:
                         stu.Scredit += 1
@@ -137,8 +150,8 @@ class AppointAdmin(admin.ModelAdmin):
 
     def violate(self, request, queryset):  # 确认违约
         for appoint in queryset:
-            if appoint.Astatus == Appoint.StatusChoices.WAITING:
-                appoint.Astatus = Appoint.StatusChoices.VIOLATED
+            if appoint.Astatus == Appoint.Status.WAITING:
+                appoint.Astatus = Appoint.Status.VIOLATED
                 appoint.save()
                 for stu in appoint.students.all():
                     stu.Scredit -= 1

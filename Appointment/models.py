@@ -17,8 +17,8 @@ class Student(models.Model):
 
 
 class RoomManager(models.Manager):
-    def all(self):
-        return self.filter(is_delete=False)
+    def permitted(self):
+        return self.filter(Rstatus=Room.Status.PERMITTED)
 
 
 class Room(models.Model):
@@ -30,21 +30,18 @@ class Room(models.Model):
     Rmax = models.IntegerField('房间使用人数上限', default=20)
     Rstart = models.TimeField('最早预约时间')
     Rfinish = models.TimeField('最迟预约时间')
+
     # Rstatus 标记当前房间是否允许预约，可由管理员修改
-    # Deleted 标记已经被删除的房间，不能从表中删除的原因在下面Appoint中
-    RSTATUS_CHOICES = ((0, 'Permitted'), (1, 'Forbidden'))
+    class Status(models.IntegerChoices):
+        PERMITTED = 0  # 允许预约
+        SUSPENDED = 1  # 暂定使用
+        # FORBIDDEN = 2  # 禁止使用
+
     Rstatus = models.SmallIntegerField('房间状态',
-                                       choices=RSTATUS_CHOICES,
+                                       choices=Status.choices,
                                        default=0)
 
-    # is_delete = models.BooleanField('逻辑删除', default=False)
-    # last_edit = models.DateTimeField('最后一次编辑时间', auto_now=True)
-
-    # objects = RoomManager()
-    # def delete(self, using=None, keep_parents=False):
-    #     """重写数据库删除方法实现逻辑删除"""
-    #     self.is_delete = True
-    #     self.save()
+    objects = RoomManager()
 
     class Meta:
         verbose_name = '房间'
@@ -57,7 +54,7 @@ class Room(models.Model):
 
 class AppointManager(models.Manager):
     def not_canceled(self):
-        return self.exclude(Astatus=Appoint.StatusChoices.CANCELED)
+        return self.exclude(Astatus=Appoint.Status.CANCELED)
 
 
 class Appoint(models.Model):
@@ -78,17 +75,7 @@ class Appoint(models.Model):
                              verbose_name='房间号')
     students = models.ManyToManyField(Student, related_name='appoint_list')
 
-    # (
-    #     (0, 'canceled'),
-    #     (1, 'appointed'),
-    #     (2, 'processing'),
-    #     (3, 'waiting'),
-    #     (4, 'confirmed'),
-    #     (5, 'violated'),
-    #     (6, 'judge'),
-    # )
-
-    class StatusChoices(models.IntegerChoices):
+    class Status(models.IntegerChoices):
         CANCELED = 0  # 已取消
         APPOINTED = 1  # 预约中
         PROCESSING = 2  # 进行中
@@ -98,13 +85,13 @@ class Appoint(models.Model):
         JUDGED = 6  # 违约申诉成功
 
     Astatus = models.IntegerField('预约状态',
-                                  choices=StatusChoices.choices,
-                                  default=0)
+                                  choices=Status.choices,
+                                  default=1)
 
     objects = AppointManager()
 
     def cancel(self):
-        self.Astatus = Appoint.StatusChoices.CANCELED
+        self.Astatus = Appoint.Status.CANCELED
         self.save()
 
     class Meta:

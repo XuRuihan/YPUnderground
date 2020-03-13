@@ -99,41 +99,16 @@ def getStudent(request):
 def addRoom(request):
     contents = json.loads(request.body)
     try:
-        Rid = contents['Rid']
-        Rtitle = contents['Rtitle']
-        Rmin = contents['Rmin']
-        Rmax = contents['Rmax']
-        # Rstart = contents['Rstart']
-        # Rfinish = contents['Rfinish']
-        Rstatus = contents['Rstatus']
-    except Exception as e:
-        return JsonResponse({
-            'status': 1,
-            'statusInfo': {
-                'message': '缺少参数',
-                'detail': str(e)
-            }
-        })
-    if Rid == '' or Rtitle == '':
-        return JsonResponse({
-            'status': 1,
-            'statusInfo': {
-                'message': '参数不能为空',
-                'detail': ''
-            }
-        })
-
-    try:
-        room = Room.objects.create(Rid=Rid,
-                                   Rtitle=Rtitle,
-                                   Rmin=Rmin,
-                                   Rmax=Rmax,
-                                   Rstatus=Rstatus)
+        room = Room.objects.create(Rid=contents['Rid'],
+                                   Rtitle=contents['Rtitle'],
+                                   Rmin=contents['Rmin'],
+                                   Rmax=contents['Rmax'],
+                                   Rstatus=contents['Rstatus'])
         return JsonResponse({'data': obj2json(room)})
     except Exception as e:
         return JsonResponse(
             {'statusInfo': {
-                'message': '房间创建失败',
+                'message': '缺少参数或者房间号重复',
                 'detail': str(e)
             }},
             status=400)
@@ -148,7 +123,7 @@ def getRoom(request):
         contents = json.loads(request.body)
         # 修改，异常处理
         try:
-            room = rooms.objects.get(Rid=contents['Rid'])
+            room = Room.objects.get(Rid=contents['Rid'])
         except Exception as e:
             return JsonResponse(
                 {'statusInfo': {
@@ -165,16 +140,16 @@ def getRoom(request):
 def startAppoint(Aid):
     # 变更预约状态
     appoint = Appoint.objects.get(Aid=Aid)
-    if appoint.Astatus == Appoint.StatusChoices.APPOINTED:
-        appoint.Astatus = Appoint.StatusChoices.PROCESSING  # processing
+    if appoint.Astatus == Appoint.Status.APPOINTED:
+        appoint.Astatus = Appoint.Status.PROCESSING  # processing
         appoint.save()
 
 
 def finishAppoint(Aid):
     # 变更预约状态
     appoint = Appoint.objects.get(Aid=Aid)
-    if appoint.Astatus == Appoint.StatusChoices.PROCESSING:
-        appoint.Astatus = Appoint.StatusChoices.WAITING  # waiting
+    if appoint.Astatus == Appoint.Status.PROCESSING:
+        appoint.Astatus = Appoint.Status.WAITING  # waiting
         appoint.save()
         # 管理员端发送通知
 
@@ -182,8 +157,8 @@ def finishAppoint(Aid):
 def confirmAppoint(Aid):
     # 变更预约状态
     appoint = Appoint.objects.get(Aid=Aid)
-    if appoint.Astatus == Appoint.StatusChoices.WAITING:
-        appoint.Astatus = Appoint.StatusChoices.CONFIRMED  # confirmed
+    if appoint.Astatus == Appoint.Status.WAITING:
+        appoint.Astatus = Appoint.Status.CONFIRMED  # confirmed
         appoint.save()
 
 
@@ -194,12 +169,14 @@ def addAppoint(request):
     # 首先检查房间是否存在
     try:
         room = Room.objects.get(Rid=contents['Rid'])
+        assert room.Rstatus == Room.Status.PERMITTED, 'room service suspended!'
     except Exception as e:
         return JsonResponse(
             {'statusInfo': {
-                'message': '房间不存在',
+                'message': '房间不存在或当前房间暂停预约服务',
                 'detail': str(e)
-            }}, status=400)
+            }},
+            status=400)
     # 再检查学号对不对
     students = []
     ideqstu = True
@@ -223,8 +200,16 @@ def addAppoint(request):
     if ideqstu is False:
         return JsonResponse(
             {'statusInfo': {
-                'message': '学生和学号不匹配',
+                'message': '学号姓名不匹配',
                 'detail': noeq
+            }}, status=400)
+    try:
+        assert len(students) >= room.Rmin, f'at least {room.Rmin} students'
+    except Exception as e:
+        return JsonResponse(
+            {'statusInfo': {
+                'message': '预约人数太少',
+                'detail': str(e)
             }},
             status=400)
     # 检查预约时间是否正确
@@ -247,8 +232,7 @@ def addAppoint(request):
 
         # 第一种可能，开始在开始之前，只要结束的比开始晚就不行
         # 第二种可能，开始在开始之后，只要在结束之前就都不行
-        if ((start <= Astart and Astart <= finish)
-                or (Astart <= start and start < Afinish)):
+        if (start <= Astart <= finish) or (Astart <= start <= Afinish):
             return JsonResponse(
                 {
                     'statusInfo': {
@@ -291,8 +275,7 @@ def addAppoint(request):
 def cancelAppoint(request):
     contents = json.loads(request.body)
     try:
-        appoints = Appoint.objects.filter(
-            Astatus=Appoint.StatusChoices.APPOINTED)
+        appoints = Appoint.objects.filter(Astatus=Appoint.Status.APPOINTED)
         appoint = appoints.get(Aid=contents['Aid'])
     except Exception as e:
         return JsonResponse(
@@ -326,3 +309,20 @@ def getAppoint(request):
                 }},
                 status=400)
         return JsonResponse({'data': appoint.toJson()})
+
+
+@require_POST
+@csrf_exempt
+def getViolated(request):
+    contents = json.loads(request.body)
+    try:
+        student = Student.objects.get(Sid=contents['Sid'])
+    except Exception as e:
+        return JsonResponse(
+            {'statusInfo': {
+                'message': '学号不存在',
+                'detail': str(e)
+            }}, status=400)
+    appoints = student.appoint_list.filter(Astatus=Appoint.Status.VIOLATED)
+    data = [appoint.toJson() for appoint in appoints]
+    return JsonResponse({'data': data})
