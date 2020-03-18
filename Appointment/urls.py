@@ -27,6 +27,7 @@ urlpatterns = [
     path('cancel-appoint', views.cancelAppoint, name='cancelAppoint'),
     path('get-appoint', views.getAppoint, name='getAppoint'),
     path('get-violated', views.getViolated, name='getViolated'),
+    path('check-time', views.checkTime, name='checkTime'),
 
     # 部署后需要删除的操作
     path('add-student', views.addStudent, name='addStudent'),

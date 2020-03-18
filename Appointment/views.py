@@ -131,7 +131,7 @@ def getRoom(request):
                     'detail': str(e)
                 }},
                 status=400)
-        appoints = room.appoint_list.all()
+        appoints = room.appoint_list.not_canceled()
         data = [appoint.toJson() for appoint in appoints]
         return JsonResponse({'data': data})
 
@@ -160,6 +160,49 @@ def confirmAppoint(Aid):
     if appoint.Astatus == Appoint.Status.WAITING:
         appoint.Astatus = Appoint.Status.CONFIRMED  # confirmed
         appoint.save()
+
+
+@require_POST
+@csrf_exempt
+def checkTime(request):
+    contents = json.loads(request.body)
+    try:
+        room = Room.objects.get(Rid=contents['Rid'])
+        assert room.Rstatus == Room.Status.PERMITTED, 'room service suspended!'
+    except Exception as e:
+        return JsonResponse(
+            {'statusInfo': {
+                'message': '房间不存在或当前房间暂停预约服务',
+                'detail': str(e)
+            }},
+            status=400)
+    try:
+        Astart = datetime.strptime(contents['Astart'], '%Y-%m-%d %H:%M:%S')
+        Afinish = datetime.strptime(contents['Afinish'], '%Y-%m-%d %H:%M:%S')
+        assert Astart <= Afinish, 'Appoint time error'
+    except Exception as e:
+        return JsonResponse(
+            {'statusInfo': {
+                'message': '时间错误',
+                'detail': str(e)
+            }}, status=400)
+    appoints = room.appoint_list.not_canceled()
+    for appoint in appoints:
+        start = appoint.Astart
+        finish = appoint.Afinish
+
+        # 第一种可能，开始在开始之前，只要结束的比开始晚就不行
+        # 第二种可能，开始在开始之后，只要在结束之前就都不行
+        if (start <= Astart <= finish) or (Astart <= start <= Afinish):
+            return JsonResponse(
+                {
+                    'statusInfo': {
+                        'message': '预约时间与已有预约冲突',
+                        'detail': appoint.toJson()
+                    }
+                },
+                status=400)
+    return JsonResponse({'data': 'ok'})
 
 
 @require_POST
@@ -294,7 +337,7 @@ def cancelAppoint(request):
 @csrf_exempt
 def getAppoint(request):
     if request.method == 'GET':  # 获取所有预约信息
-        appoints = Appoint.objects.all()
+        appoints = Appoint.objects.not_canceled()
         data = [appoint.toJson() for appoint in appoints]
         return JsonResponse({'data': data})
     elif request.method == 'POST':  # 获取某条预约信息
