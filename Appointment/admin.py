@@ -110,20 +110,16 @@ class AppointAdmin(admin.ModelAdmin):
     Students.short_description = '预约者'
 
     def Astatus_display(self, obj):
-        if obj.Astatus == Appoint.Status.CANCELED:
-            color_code = 'grey'
-        elif obj.Astatus == Appoint.Status.APPOINTED:
-            color_code = 'black'
-        elif obj.Astatus == Appoint.Status.PROCESSING:
-            color_code = 'purple'
-        elif obj.Astatus == Appoint.Status.WAITING:
-            color_code = 'blue'
-        elif obj.Astatus == Appoint.Status.CONFIRMED:
-            color_code = 'green'
-        elif obj.Astatus == Appoint.Status.VIOLATED:
-            color_code = 'red'
-        elif obj.Astatus == Appoint.Status.JUDGED:
-            color_code = 'yellowgreen'
+        status2color = {
+            Appoint.Status.CANCELED: 'grey',
+            Appoint.Status.APPOINTED: 'black',
+            Appoint.Status.PROCESSING: 'purple',
+            Appoint.Status.WAITING: 'blue',
+            Appoint.Status.CONFIRMED: 'green',
+            Appoint.Status.VIOLATED: 'red',
+            Appoint.Status.JUDGED: 'yellowgreen',
+        }
+        color_code = status2color[obj.Astatus]
         return format_html(
             '<span style="color: {};">{}</span>',
             color_code,
